@@ -1,0 +1,135 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>结构化总结工具</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+      margin: 10px 0;
+      box-sizing: border-box;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      width: 100%;
+    }
+    pre {
+      background: #f8f9fa;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      margin: 20px 0;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    #apikey {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>结构化总结工具</h1>
+  <p>首次使用，请输入你的 Qwen API Key（<a href="https://dashscope.console.aliyun.com/apiKey" target="_blank">点此获取</a>）：</p>
+  <input type="password" id="apikey" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx">
+  <button onclick="saveKey()">保存并开始使用</button>
+  
+  <div id="main" style="display:none;">
+    <textarea id="input" placeholder="粘贴你想总结的文字..."></textarea>
+    <button onclick="generate()">生成总结</button>
+    <div id="output"></div>
+  </div>
+
+  <script>
+    // 保存 API Key 到本地
+    function saveKey() {
+      const key = document.getElementById('apikey').value.trim();
+      if (!key.startsWith('sk-')) {
+        alert('请输入有效的 Qwen API Key（以 sk- 开头）');
+        return;
+      }
+      localStorage.setItem('qwen_api_key', key);
+      document.getElementById('main').style.display = 'block';
+      document.querySelector('h1').innerText = '结构化总结';
+      document.querySelector('p').remove();
+      document.getElementById('apikey').remove();
+      document.querySelector('button').remove();
+    }
+
+    // 检查是否已有 Key
+    if (localStorage.getItem('qwen_api_key')) {
+      document.getElementById('main').style.display = 'block';
+      document.querySelector('h1').innerText = '结构化总结';
+      document.querySelector('p').remove();
+      document.getElementById('apikey').remove();
+      document.querySelector('button').remove();
+    }
+
+    async function generate() {
+      const text = document.getElementById('input').value.trim();
+      if (!text) return alert('请输入文字');
+
+      const key = localStorage.getItem('qwen_api_key');
+      if (!key) return alert('请先输入 API Key');
+
+      const output = document.getElementById('output');
+      output.innerHTML = '<p style="text-align:center; color:#666;">正在生成...（使用Qwen AI）</p>';
+
+      try {
+        const response = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + key,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: "qwen-max",
+            input: {
+              messages: [{
+                role: "user",
+                content: `你是一个知识提炼专家。请将以下文字做结构化总结，要求必须包含三部分，并用数字标号：\n1. 核心观点\n2. 举例说明\n3. 实用建议\n\n文字内容：${text}`
+              }]
+            }
+          })
+        });
+
+        const data = await response.json();
+        if (data.output?.choices?.[0]?.message?.content) {
+          const summary = data.output.choices[0].message.content;
+          output.innerHTML = `<pre>${summary}</pre>`;
+        } else {
+          output.innerHTML = `<p style="color:red;">出错了：${JSON.stringify(data)}</p>`;
+        }
+      } catch (err) {
+        output.innerHTML = `<p style="color:red;">网络错误：${err.message}</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
